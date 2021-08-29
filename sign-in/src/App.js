@@ -5,7 +5,6 @@ import Harsh from './features/harsh/index';
 import Gatcha from './features/gatcha/index';
 import FaceID from './features/faceID/index';
 import 'bootstrap/dist/css/bootstrap.css';
-import UserApi from './api/userApi';
 
 function App() {
   // const [userName, setUsername] = useState([]);
@@ -30,8 +29,6 @@ function App() {
           <Header></Header>
 
           <Switch>
-            <Redirect exact from="/" to="/harsh" />
-
             <Route path="/harsh" component={Harsh} />
             <Route path='/gatcha' component={Gatcha} />
             <Route path='/faceID' component={FaceID} />

@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as faceApi from 'face-api.js';
-import { Container } from 'reactstrap'
-import './faceID.scss'
+import { Container } from 'reactstrap';
+import './faceID.scss';
+
 
 function FaceID() {
     const videoHeight = 480;
@@ -19,6 +20,7 @@ function FaceID() {
                 faceApi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
                 faceApi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
                 faceApi.nets.faceExpressionNet.loadFromUri(MODEL_URL),
+                faceApi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
             ]).then(startVideo);
         }
         loadModels();
@@ -32,35 +34,62 @@ function FaceID() {
             err => console.error('fail' + err))
     }
 
+    const handleVideoOnPlay = async () => {
+        const LabeledFaceDescriptors = await loadLabelVideo();
+        const faceMatcher = new faceApi.FaceMatcher(LabeledFaceDescriptors, 0.6);
 
 
-    const handleVideoOnPlay = () => {
+        canvasRef.current.innerHTML = faceApi.createCanvasFromMedia(videoRef.current);
+
+        const displaySize = {
+            width: videoWidth,
+            height: videoHeight
+        }
+        faceApi.matchDimensions(canvasRef.current, displaySize);
         setInterval(async () => {
+
+
             if (initiallizing) {
                 setInitializing(false);
             }
-            canvasRef.current.innerHTML = faceApi.createCanvasFromMedia(videoRef.current);
-            const displaySize = {
-                width: videoWidth,
-                height: videoHeight
-            }
-            faceApi.matchDimensions(canvasRef.current, displaySize);
-            const detections = await faceApi.detectAllFaces(videoRef.current, new faceApi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceExpressions();
+
+            const detections = await faceApi.detectAllFaces(videoRef.current, new faceApi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptors();
+
             const resizeDetections = faceApi.resizeResults(detections, displaySize);
+            // console.log(faceMatcher.findBestMatch(resizeDetections));
+
             canvasRef.current.getContext('2d').clearRect(0, 0, videoWidth, videoHeight);
-            faceApi.draw.drawDetections(canvasRef.current, resizeDetections);
-            faceApi.draw.drawFaceLandmarks(canvasRef.current, resizeDetections);
-            faceApi.draw.drawFaceExpressions(canvasRef.current, resizeDetections);
-            console.log(detections)
-        }, 100)
+            const results = resizeDetections.map((d) => {
+                return faceMatcher.findBestMatch(d.descriptor);
+            })
+
+            results.forEach((result, i) => {
+                const box = resizeDetections[i].detection.box;
+                const drawBox = new faceApi.draw.DrawBox(box, { label: result.toString() })
+                drawBox.draw(canvasRef.current);
+            })
+
+
+            // faceApi.draw.drawDetections(canvasRef.current, resizeDetections);
+            // faceApi.draw.drawFaceLandmarks(canvasRef.current, resizeDetections);
+            // faceApi.draw.drawFaceExpressions(canvasRef.current, resizeDetections);
+            // console.log(detections)
+        }, 500)
     }
 
     function loadLabelVideo() {
-        const labels = ['Phuc']
+        const labels = ['EmmaWason'];
 
         return Promise.all(
             labels.map(async label => {
-                const descriptions = []
+                const descriptions = [];
+                for (let i = 1; i <= 2; i++) {
+                    const img = await faceApi.fetchImage(`http://127.0.0.1:5500/images/labels_images/${label}/${i}.jpg`);
+                    const detections = await faceApi.detectSingleFace(img, new faceApi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptor();
+                    descriptions.push(detections.descriptor);
+                }
+                document.body.append(label + 'Faces Loaded|');
+                return new faceApi.LabeledFaceDescriptors(label, descriptions);
 
             })
         )
