@@ -8,6 +8,7 @@ function FaceID() {
     const videoHeight = 480;
     const videoWidth = 640;
     const [initiallizing, setInitializing] = useState(false);
+    const [isCapture, setIsCapture] = useState(true);
     const videoRef = useRef();
     const canvasRef = useRef();
     const img = new Image();
@@ -33,6 +34,15 @@ function FaceID() {
         },
             stream => videoRef.current.srcObject = stream,
             err => console.error('fail' + err))
+    }
+
+    const offVideo = () => {
+        const stream = videoRef.current.srcObject;
+        const tracks = stream.getTracks();
+        tracks.forEach((track) => {
+            track.stop();
+        });
+        videoRef.current.srcObject = null;
     }
 
     // const handleVideoOnPlay = async () => {
@@ -100,17 +110,25 @@ function FaceID() {
         canvasRef.current.getContext('2d').clearRect(0, 0, videoWidth, videoHeight);
         canvasRef.current.getContext('2d').drawImage(videoRef.current, 0, 0);
         img.src = canvasRef.current.toDataURL();
+        setIsCapture(false);
+        offVideo();
+    }
+
+    const reCapture = () => {
+        startVideo();
+        canvasRef.current.getContext('2d').clearRect(0, 0, videoWidth, videoHeight);
+        setIsCapture(true);
     }
 
     return (
         <Container>
             <span>{initiallizing ? 'Initializing' : 'Ready'}</span>
             <div className="display-flex">
-                <video ref={videoRef} controls muted height={videoHeight} width={videoWidth} />
-                <canvas ref={canvasRef} height={videoHeight} width={videoWidth} />
+                <video ref={videoRef} autoPlay muted height={videoHeight} width={videoWidth} />
+                <canvas className="position-absolute" ref={canvasRef} height={videoHeight} width={videoWidth} />
             </div>
             <FormGroup>
-                <Button type="submit" onClick={handleOnClick}>Capture</Button>
+                {(isCapture) ? <Button type="submit" onClick={handleOnClick}>Capture</Button> : <Button type="submit" onClick={reCapture}>Re-Capture</Button>}
                 <Button type="submit" >Upload</Button>
             </FormGroup>
         </Container>
